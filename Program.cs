@@ -275,25 +275,3 @@ app.MapHub<DataHub>("/hubs/data");
 app.MapHub<MonitoringHub>("/hubs/monitoring");
 
 app.Run();
-```
-
-## Key Changes Made:
-
-1. **Swagger configuration moved outside any environment checks** - Now available in all environments (Development, Production, etc.)
-
-2. **RoutePrefix changed to "swagger"** - Access Swagger UI at `/swagger` instead of root
-
-3. **Removed `AddOpenApi()` and `MapOpenApi()`** - These are .NET 9 minimal API features, keeping just Swagger
-
-4. **Cleaner organization** - Comments added for clarity
-
-## Access Your Swagger:
-
-After deploying this updated code to Railway:
-```
-https://hacpharmabackend-production.up.railway.app/swagger
-```
-
-The Swagger JSON will be at:
-```
-https://hacpharmabackend-production.up.railway.app/swagger/v1/swagger.json
