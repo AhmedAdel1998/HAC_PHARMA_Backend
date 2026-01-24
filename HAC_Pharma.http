@@ -1,0 +1,6 @@
+@HAC_Pharma_HostAddress = http://localhost:5087
+
+GET {{HAC_Pharma_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
