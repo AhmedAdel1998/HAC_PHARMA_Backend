@@ -162,3 +162,4 @@ E:\HAC_Pharma\Back-End\HAC_Pharma\obj\Debug\net9.0\HAC_Pharma.genruntimeconfig.c
 E:\HAC_Pharma\Back-End\HAC_Pharma\obj\Debug\net9.0\ref\HAC_Pharma.dll
 E:\HAC_Pharma\Back-End\HAC_Pharma\bin\Debug\net9.0\appsettings.Production.json
 E:\HAC_Pharma\Back-End\HAC_Pharma\obj\Debug\net9.0\staticwebassets.upToDateCheck.txt
+E:\HAC_Pharma\Back-End\HAC_Pharma\obj\Debug\net9.0\HAC_Pharma.sourcelink.json
