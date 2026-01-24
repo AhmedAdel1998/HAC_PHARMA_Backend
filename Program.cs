@@ -210,16 +210,13 @@ await HAC_Pharma.Infrastructure.Data.DbSeeder.SeedAsync(app.Services);
 await HAC_Pharma.Infrastructure.Data.TranslationSeeder.SeedAsync(app.Services, app.Environment);
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
+    // app.MapOpenApi(); // Optional: Keep or remove depending on preference, identifying mostly with .NET 9 features
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "HAC Pharma API V1");
         c.RoutePrefix = string.Empty; // Swagger at root
     });
-}
 
 app.UseHttpsRedirection();
 
