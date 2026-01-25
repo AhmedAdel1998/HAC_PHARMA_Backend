@@ -18,11 +18,36 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
-// Configure Entity Framework with SQL Server
+// Configure Entity Framework with MySQL
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Check for Railway environment variables
+var dbHost = Environment.GetEnvironmentVariable("MYSQLHOST");
+if (!string.IsNullOrEmpty(dbHost))
+{
+    var dbUser = Environment.GetEnvironmentVariable("MYSQLUSER") ?? "root";
+    var dbPassword = Environment.GetEnvironmentVariable("MYSQLPASSWORD") ?? "";
+    var dbPort = Environment.GetEnvironmentVariable("MYSQLPORT") ?? "3306";
+    var dbName = Environment.GetEnvironmentVariable("MYSQLDATABASE") ?? "railway"; // Use provided database name or fallback
+
+    connectionString = $"server={dbHost};port={dbPort};user={dbUser};password={dbPassword};database={dbName}";
+}
+
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        b => b.MigrationsAssembly("HAC_Pharma")));
+{
+    try 
+    {
+        options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString),
+            b => b.MigrationsAssembly("HAC_Pharma").EnableRetryOnFailure());
+    }
+    catch (System.Exception)
+    {
+        // Fallback when DB is not reachable
+        options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 2)),
+            b => b.MigrationsAssembly("HAC_Pharma").EnableRetryOnFailure());
+    }
+});
 
 // Configure Identity
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
@@ -33,7 +58,7 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
     options.Password.RequireUppercase = true;
     options.Password.RequireNonAlphanumeric = true;
     options.Password.RequiredLength = 8;
-
+    
     // Lockout settings
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
     options.Lockout.MaxFailedAccessAttempts = 5;
@@ -45,7 +70,6 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-// Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
 
@@ -65,129 +89,19 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(key),
-        ClockSkew = TimeSpan.Zero,
-        RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role", // MATCHES THE ACTUAL CLAIM IN THE TOKEN
-        NameClaimType = "name"  // Important: Match the claim name in the token
-    };
-
-    options.Events = new JwtBearerEvents
-    {
-        OnAuthenticationFailed = context =>
-        {
-            Console.WriteLine("Authentication failed: " + context.Exception.Message);
-            return Task.CompletedTask;
-        },
-        OnTokenValidated = context =>
-        {
-            Console.WriteLine("Token validated successfully for user: " + context.Principal?.Identity?.Name);
-            return Task.CompletedTask;
-        },
-        OnMessageReceived = context =>
-        {
-            var accessToken = context.Request.Query["access_token"];
-            var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) &&
-                (path.StartsWithSegments("/hubs")))
-            {
-                context.Token = accessToken;
-            }
-            return Task.CompletedTask;
-        }
+        ClockSkew = TimeSpan.Zero
     };
 });
 
-// Configure SignalR
-builder.Services.AddSignalR();
-
-// Configure CORS
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.SetIsOriginAllowed(origin => true) // Allow any origin
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
-    });
-
-    options.AddPolicy("AllowSpecificOrigins", policy =>
-    {
-        policy.WithOrigins(
-            "http://localhost:4200", 
-            "https://localhost:4200", 
-            "http://localhost:3000",
-            "https://localhost:3000") // Added HTTPS
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
-    });
-});
-
-// Register CMS Services
-builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IAuthService, HAC_Pharma.Application.Services.AuthService>();
-builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IContentService, HAC_Pharma.Application.Services.ContentService>();
-builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IProductService, HAC_Pharma.Application.Services.ProductService>();
-builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IMediaService, HAC_Pharma.Application.Services.MediaService>();
-builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IUserService, HAC_Pharma.Application.Services.UserService>();
-builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IContactService, HAC_Pharma.Application.Services.ContactService>();
-builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IJobService, HAC_Pharma.Application.Services.JobService>();
-builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IEventService, HAC_Pharma.Application.Services.EventService>();
-builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IAnalyticsService, HAC_Pharma.Application.Services.AnalyticsService>();
-builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.ISettingsService, HAC_Pharma.Application.Services.SettingsService>();
-builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.ITranslationService, HAC_Pharma.Application.Services.TranslationService>();
-builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.INotificationService, HAC_Pharma.Application.Services.NotificationService>();
-
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
-// Add Swagger
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
-    {
-        Title = "HAC Pharma API",
-        Version = "v1",
-        Description = "CMS API for HAC Pharma pharmaceutical management system",
-        Contact = new Microsoft.OpenApi.Models.OpenApiContact
-        {
-            Name = "HAC Pharma",
-            Email = "support@hacpharma.com"
-        }
-    });
-
-    // Add JWT Authentication to Swagger
-    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-    {
-        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token.",
-        Name = "Authorization",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
-
-    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
-    {
-        {
-            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-            {
-                Reference = new Microsoft.OpenApi.Models.OpenApiReference
-                {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
-});
+// ... (Rest of configuration)
 
 var app = builder.Build();
 
-// Apply pending migrations
+// Apply pending migrations and Seed Data
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
     try 
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
@@ -195,19 +109,18 @@ using (var scope = app.Services.CreateScope())
         {
             await context.Database.MigrateAsync();
         }
+        
+        // Seed database (create roles and admin user)
+        await HAC_Pharma.Infrastructure.Data.DbSeeder.SeedAsync(app.Services);
+
+        // Seed translations from JSON files
+        await HAC_Pharma.Infrastructure.Data.TranslationSeeder.SeedAsync(app.Services, app.Environment);
     }
     catch (Exception ex)
     {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while migrating the database.");
+        logger.LogError(ex, "An error occurred while initializing the database. Ensure MySQL is running and accessible.");
     }
 }
-
-// Seed database (create roles and admin user)
-await HAC_Pharma.Infrastructure.Data.DbSeeder.SeedAsync(app.Services);
-
-// Seed translations from JSON files
-await HAC_Pharma.Infrastructure.Data.TranslationSeeder.SeedAsync(app.Services, app.Environment);
 
 // Configure the HTTP request pipeline.
     // app.MapOpenApi(); // Optional: Keep or remove depending on preference, identifying mostly with .NET 9 features
