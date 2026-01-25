@@ -93,7 +93,91 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// ... (Rest of configuration)
+// Configure SignalR
+builder.Services.AddSignalR();
+
+// Configure CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.SetIsOriginAllowed(origin => true) // Allow any origin
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+
+    options.AddPolicy("AllowSpecificOrigins", policy =>
+    {
+        policy.WithOrigins(
+            "http://localhost:4200", 
+            "https://localhost:4200", 
+            "http://localhost:3000",
+            "https://localhost:3000") // Added HTTPS
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+});
+
+// Register CMS Services
+builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IAuthService, HAC_Pharma.Application.Services.AuthService>();
+builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IContentService, HAC_Pharma.Application.Services.ContentService>();
+builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IProductService, HAC_Pharma.Application.Services.ProductService>();
+builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IMediaService, HAC_Pharma.Application.Services.MediaService>();
+builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IUserService, HAC_Pharma.Application.Services.UserService>();
+builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IContactService, HAC_Pharma.Application.Services.ContactService>();
+builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IJobService, HAC_Pharma.Application.Services.JobService>();
+builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IEventService, HAC_Pharma.Application.Services.EventService>();
+builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.IAnalyticsService, HAC_Pharma.Application.Services.AnalyticsService>();
+builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.ISettingsService, HAC_Pharma.Application.Services.SettingsService>();
+builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.ITranslationService, HAC_Pharma.Application.Services.TranslationService>();
+builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.INotificationService, HAC_Pharma.Application.Services.NotificationService>();
+
+// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddOpenApi();
+
+// Add Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "HAC Pharma API",
+        Version = "v1",
+        Description = "CMS API for HAC Pharma pharmaceutical management system",
+        Contact = new Microsoft.OpenApi.Models.OpenApiContact
+        {
+            Name = "HAC Pharma",
+            Email = "support@hacpharma.com"
+        }
+    });
+
+    // Add JWT Authentication to Swagger
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token.",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 
