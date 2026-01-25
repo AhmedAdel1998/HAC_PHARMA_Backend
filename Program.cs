@@ -6,7 +6,9 @@ using System.Text;
 using HAC_Pharma.Infrastructure.Data;
 using HAC_Pharma.Domain.Entities;
 using HAC_Pharma.Application.Hubs;
-using System.IdentityModel.Tokens.Jwt;
+
+
+using System.IdentityModel.Tokens.Jwt; // Added for JwtSecurityTokenHandler
 
 // Disable automatic claim mapping (keeps "role" as "role" instead of mapping to long URI)
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
@@ -64,8 +66,8 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(key),
         ClockSkew = TimeSpan.Zero,
-        RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
-        NameClaimType = "name"
+        RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role", // MATCHES THE ACTUAL CLAIM IN THE TOKEN
+        NameClaimType = "name"  // Important: Match the claim name in the token
     };
 
     options.Events = new JwtBearerEvents
@@ -102,7 +104,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.SetIsOriginAllowed(origin => true)
+        policy.SetIsOriginAllowed(origin => true) // Allow any origin
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -114,7 +116,7 @@ builder.Services.AddCors(options =>
             "http://localhost:4200", 
             "https://localhost:4200", 
             "http://localhost:3000",
-            "https://localhost:3000")
+            "https://localhost:3000") // Added HTTPS
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -135,7 +137,10 @@ builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.ISettingsService, HAC_Ph
 builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.ITranslationService, HAC_Pharma.Application.Services.TranslationService>();
 builder.Services.AddScoped<HAC_Pharma.Domain.Interfaces.INotificationService, HAC_Pharma.Application.Services.NotificationService>();
 
-// Add Swagger/OpenAPI
+// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddOpenApi();
+
+// Add Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -204,13 +209,14 @@ await HAC_Pharma.Infrastructure.Data.DbSeeder.SeedAsync(app.Services);
 // Seed translations from JSON files
 await HAC_Pharma.Infrastructure.Data.TranslationSeeder.SeedAsync(app.Services, app.Environment);
 
-// Configure the HTTP request pipeline - Enable Swagger for ALL environments
-app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "HAC Pharma API V1");
-    c.RoutePrefix = "swagger"; // Access Swagger at /swagger
-});
+// Configure the HTTP request pipeline.
+    // app.MapOpenApi(); // Optional: Keep or remove depending on preference, identifying mostly with .NET 9 features
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "HAC Pharma API V1");
+        c.RoutePrefix = string.Empty; // Swagger at root
+    });
 
 app.UseHttpsRedirection();
 
@@ -225,44 +231,44 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = "/uploads"
 });
 
-// Use CORS - Must be before Authentication/Authorization
+// Use CORS
 app.UseCors("AllowAll");
 
-// Debugging Middleware: Log headers
-app.Use(async (context, next) =>
-{
-    var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-    Console.WriteLine($"[Request] {context.Request.Method} {context.Request.Path}");
-    if (!string.IsNullOrEmpty(authHeader))
-    {
-        Console.WriteLine($"   Auth Header found: {authHeader.Substring(0, Math.Min(20, authHeader.Length))}...");
-    }
-    else
-    {
-        Console.WriteLine("   ⚠️ No Authorization Header found!");
-    }
-    await next();
-});
-
 // Authentication & Authorization
-app.UseAuthentication();
-
-// Debugging Middleware: Log User Claims after Authentication
-app.Use(async (context, next) =>
-{
-    Console.WriteLine($"[AuthDebug] User Authenticated: {context.User.Identity?.IsAuthenticated}");
-    if (context.User.Identity?.IsAuthenticated == true)
+    // Debugging Middleware: Log headers
+    app.Use(async (context, next) =>
     {
-        Console.WriteLine($"[AuthDebug] Name: {context.User.Identity.Name}");
-        foreach (var claim in context.User.Claims)
+        var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+        Console.WriteLine($"[Request] {context.Request.Method} {context.Request.Path}");
+        if (!string.IsNullOrEmpty(authHeader))
         {
-            Console.WriteLine($"[AuthDebug] Claim: {claim.Type} = {claim.Value}");
+            Console.WriteLine($"   Auth Header found: {authHeader.Substring(0, Math.Min(20, authHeader.Length))}...");
         }
-    }
-    await next();
-});
+        else
+        {
+            Console.WriteLine("   ⚠️ No Authorization Header found!");
+        }
+        await next();
+    });
 
-app.UseAuthorization();
+    app.UseAuthentication();
+    
+    // Debugging Middleware: Log User Claims after Authentication
+    app.Use(async (context, next) =>
+    {
+        Console.WriteLine($"[AuthDebug] User Authenticated: {context.User.Identity?.IsAuthenticated}");
+        if (context.User.Identity?.IsAuthenticated == true)
+        {
+            Console.WriteLine($"[AuthDebug] Name: {context.User.Identity.Name}");
+            foreach (var claim in context.User.Claims)
+            {
+                Console.WriteLine($"[AuthDebug] Claim: {claim.Type} = {claim.Value}");
+            }
+        }
+        await next();
+    });
+
+    app.UseAuthorization();
 
 // Track page views
 app.UseMiddleware<HAC_Pharma.Infrastructure.Middleware.AnalyticsMiddleware>();

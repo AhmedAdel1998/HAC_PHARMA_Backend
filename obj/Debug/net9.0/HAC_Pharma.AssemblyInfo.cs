@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HAC_Pharma")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9c4cb12ea295f53d7d5e084843fd8d2294990784")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+af3c01a4e317cda3db27fae294635ea4052c4567")]
 [assembly: System.Reflection.AssemblyProductAttribute("HAC_Pharma")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HAC_Pharma")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
